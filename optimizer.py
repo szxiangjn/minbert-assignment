@@ -2,6 +2,7 @@ from typing import Callable, Iterable, Tuple
 
 import torch
 from torch.optim import Optimizer
+import math
 
 
 class AdamW(Optimizer):
@@ -38,23 +39,33 @@ class AdamW(Optimizer):
                 if grad.is_sparse:
                     raise RuntimeError("Adam does not support sparse gradients, please consider SparseAdam instead")
 
-                raise NotImplementedError()
 
                 # State should be stored in this dictionary
                 state = self.state[p]
-
+                m = state["m"] if "m" in state else 0
+                v = state["v"] if "v" in state else 0
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
+                beta1, beta2 = group["betas"]
+                eps = group["eps"]
+                weight_decay = group["weight_decay"]
 
+                beta1_t = (state["beta1_t"] if "beta1_t" in state else 1) * beta1
+                state["beta1_t"] = beta1_t
+                beta2_t = (state["beta2_t"] if "beta2_t" in state else 1) * beta2
+                state["beta2_t"] = beta2_t
                 # Update first and second moments of the gradients
-
+                m = beta1 * m + (1 - beta1) * grad
+                state["m"] = m
+                v = beta2 * v + (1 - beta2) * grad ** 2
+                state["v"] = v
                 # Bias correction
                 # Please note that we are using the "efficient version" given in
                 # https://arxiv.org/abs/1412.6980
-
+                alpha_t = alpha * math.sqrt(1 - beta2_t) / (1 - beta1_t)
+                # Add weight decay
+                p.mul_(1 - alpha_t * weight_decay)
                 # Update parameters
-
-                # Add weight decay after the main gradient-based updates.
+                p.add_(m / torch.sqrt(v) + eps, alpha=-alpha_t)
                 # Please note that the learning rate should be incorporated into this update.
-
         return loss
