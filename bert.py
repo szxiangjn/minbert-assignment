@@ -41,8 +41,8 @@ class BertSelfAttention(nn.Module):
     # S[*, i, j, k] represents the (unnormalized)attention score between the j-th and k-th token, given by i-th attention head
     # before normalizing the scores, use the attention mask to mask out the padding token scores
     # Note again: in the attention_mask non-padding tokens with 0 and padding tokens with a large negative number
-    bs, num_attention_heads, seq_len, attention_head_size = key.size(3) 
-    scores = torch.einsum('nijk,nilk->nijl', [query, key]) / torch.sqrt(attention_head_size)
+    bs, num_attention_heads, seq_len, attention_head_size = key.size() 
+    scores = torch.einsum('nijk,nilk->nijl', [query, key]) / math.sqrt(attention_head_size)
     scores = torch.where(attention_mask==0, scores, attention_mask)
     # normalize the scores
     scores = nn.functional.softmax(scores, dim=3)
@@ -50,7 +50,7 @@ class BertSelfAttention(nn.Module):
     # multiply the attention scores to the value and get back V' 
     attn_value = torch.einsum('nijk,nikl->nijl', [scores, value])
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
-    attn_value = attn_value.permute(0, 2, 1, 3).view(bs, seq_len, -1)
+    attn_value = attn_value.permute(0, 2, 1, 3).reshape(bs, seq_len, -1)
 
     return attn_value
 
@@ -119,7 +119,7 @@ class BertLayer(nn.Module):
     # another add-norm layer
     output = self.add_norm(ffn_input, ffn_output, self.out_dense, self.out_dropout, self.out_layer_norm)
 
-    raise output
+    return output
 
 
 class BertModel(BertPreTrainedModel):
