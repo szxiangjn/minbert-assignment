@@ -26,6 +26,7 @@ class AdamW(Optimizer):
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, correct_bias=correct_bias)
         super().__init__(params, defaults)
 
+    @torch.no_grad()
     def step(self, closure: Callable = None):
         loss = None
         if closure is not None:
@@ -44,20 +45,20 @@ class AdamW(Optimizer):
                 state = self.state[p]
                 m = state["m"] if "m" in state else 0
                 v = state["v"] if "v" in state else 0
+                step = state["step"] if "step" in state else 1
+                state["step"] = step + 1
                 # Access hyperparameters from the `group` dictionary
                 alpha = group["lr"]
                 beta1, beta2 = group["betas"]
                 eps = group["eps"]
                 weight_decay = group["weight_decay"]
 
-                beta1_t = (state["beta1_t"] if "beta1_t" in state else 1) * beta1
-                state["beta1_t"] = beta1_t
-                beta2_t = (state["beta2_t"] if "beta2_t" in state else 1) * beta2
-                state["beta2_t"] = beta2_t
+                beta1_t = beta1 ** step
+                beta2_t = beta2 ** step
                 # Update first and second moments of the gradients
-                m = beta1 * m + (1 - beta1) * grad
+                m = beta1 * m + grad * (1 - beta1)
                 state["m"] = m
-                v = beta2 * v + (1 - beta2) * grad ** 2
+                v = beta2 * v + grad ** 2 * (1 - beta2)
                 state["v"] = v
                 # Bias correction
                 # Please note that we are using the "efficient version" given in
@@ -66,6 +67,6 @@ class AdamW(Optimizer):
                 # Add weight decay
                 p.mul_(1 - alpha_t * weight_decay)
                 # Update parameters
-                p.add_(m / torch.sqrt(v) + eps, alpha=-alpha_t)
+                p.add_(m / (torch.sqrt(v) + eps), alpha=-alpha_t)
                 # Please note that the learning rate should be incorporated into this update.
         return loss
