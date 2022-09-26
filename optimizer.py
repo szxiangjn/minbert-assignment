@@ -65,7 +65,7 @@ class AdamW(Optimizer):
                 # https://arxiv.org/abs/1412.6980
                 alpha_t = alpha * math.sqrt(1 - beta2_t) / (1 - beta1_t)
                 # Add weight decay
-                p.mul_(1 - alpha_t * weight_decay)
+                p.mul_(1 - alpha * weight_decay)
                 # Update parameters
                 p.add_(m / (torch.sqrt(v) + eps), alpha=-alpha_t)
                 # Please note that the learning rate should be incorporated into this update.
